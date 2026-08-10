@@ -66,6 +66,31 @@ def extract_pages(path: str | Path) -> list[PdfPage]:
     return pages
 
 
+def subset_pdf(path: str | Path, indices: list[int]) -> bytes:
+    """Assemble a new PDF holding only the given 0-indexed pages, in that order.
+
+    Used to hand a native-PDF OCR engine (Mistral) exactly the pages that need
+    OCR without rasterizing them, then splice the per-page result back by the
+    same index order.
+    """
+    import io
+
+    import pypdfium2 as pdfium
+
+    src = pdfium.PdfDocument(str(path))
+    try:
+        dst = pdfium.PdfDocument.new()
+        try:
+            dst.import_pages(src, pages=list(indices))
+            buf = io.BytesIO()
+            dst.save(buf)
+            return buf.getvalue()
+        finally:
+            dst.close()
+    finally:
+        src.close()
+
+
 def render_pages(path: str | Path, indices: list[int], scale: float = 2.5) -> dict[int, bytes]:
     """Rasterize the given 0-indexed pages to PNG bytes with pypdfium2.
 

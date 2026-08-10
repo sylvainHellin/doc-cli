@@ -8,6 +8,7 @@ from typing import Any
 from . import office, pdf
 from .config import Config
 from .engines import get_engine
+from .engines.base import OcrEngine, OcrResult
 
 IMAGE_EXTENSIONS = frozenset(
     {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp", ".gif"}
@@ -58,17 +59,40 @@ def parse(path: str | Path, engine_name: str, config: Config) -> dict[str, Any]:
     raise ValueError(f"unsupported file type: {path.suffix or '(none)'}")
 
 
+def _run_pdf_ocr(
+    engine: OcrEngine, path: Path, ocr_indices: list[int], page_count: int
+) -> OcrResult:
+    """OCR the pages that need it, using a native PDF call when the engine supports it.
+
+    Mistral OCR accepts PDF input directly, so we skip rasterization: send the
+    whole PDF when every page needs OCR, otherwise assemble a sub-PDF of just the
+    ocr_indices (in order) so the returned per-page markdown lines up with them.
+    Other engines take rendered page images as before.
+    """
+    from .engines.mistral_engine import MistralEngine
+
+    if isinstance(engine, MistralEngine):
+        if len(ocr_indices) == page_count:
+            pdf_bytes = path.read_bytes()
+        else:
+            pdf_bytes = pdf.subset_pdf(path, ocr_indices)
+        return engine.ocr_pdf(pdf_bytes)
+
+    images_by_index = pdf.render_pages(path, ocr_indices)
+    ordered = [images_by_index[i] for i in ocr_indices]
+    return engine.ocr(ordered)
+
+
 def _parse_pdf(path: Path, engine_name: str, config: Config) -> dict[str, Any]:
     pages = pdf.extract_pages(path)
     ocr_indices = [p.index for p in pages if p.needs_ocr]
     engine_used = None
     if ocr_indices:
-        images_by_index = pdf.render_pages(path, ocr_indices)
         engine = get_engine(engine_name, config)
         engine.check()
-        ordered = [images_by_index[i] for i in ocr_indices]
-        result = engine.ocr(ordered)
+        result = _run_pdf_ocr(engine, path, ocr_indices, len(pages))
         engine_used = result.engine
+        # result.pages is aligned with ocr_indices order (sub-PDF page order).
         ocr_text = dict(zip(ocr_indices, result.pages))
         for p in pages:
             if p.needs_ocr:
