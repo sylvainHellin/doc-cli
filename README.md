@@ -37,10 +37,10 @@ An engine that cannot run in the current environment raises `EngineUnavailable` 
 
 | Engine | Where | Model | Output |
 | --- | --- | --- | --- |
-| `rapidocr` | Local, CPU, Linux default | RapidOCR-ONNX v3.9.x (PP-OCRv6) | Plain text lines assembled in reading order (no invented Markdown structure) |
-| `glm` | macOS arm64 via mlx-vlm, Linux via Ollama HTTP | GLM-OCR 0.9B (MIT) | Markdown |
-| `gemini` | Cloud, default cloud choice | `gemini-3.5-flash-lite` | Markdown |
-| `mistral` | Cloud | `mistral-ocr-4-0`, native PDF input | Markdown |
+| `mistral` | Cloud, default when MISTRAL_API_KEY is set | `mistral-ocr-4-0`, native PDF input | Markdown |
+| `gemini` | Cloud, free-tier fallback | `gemini-3.5-flash-lite` | Markdown |
+| `rapidocr` | Local, CPU, offline fallback on Linux | RapidOCR-ONNX v3.9.x (PP-OCRv6) | Plain text lines assembled in reading order (no invented Markdown structure) |
+| `glm` | Local, offline fallback on macOS arm64 (mlx-vlm) or Linux (Ollama HTTP) | GLM-OCR 0.9B (MIT) | Markdown |
 
 RapidOCR is the fast classical path: sub-second per page on CPU, strong on plain text, no tables or math.
 GLM-OCR is a small document VLM: higher-quality Markdown with tables and formulas, but slow on a CPU-only server, so on Linux it is opt-in and reached through an Ollama server you run yourself.
@@ -52,16 +52,39 @@ No model weights are downloaded during install; RapidOCR fetches its ONNX models
 doc parse file.pdf --engine rapidocr|glm|gemini|mistral|auto
 ```
 
-`auto` (the default) picks the local engine for the platform: RapidOCR on Linux, GLM on macOS.
-Cloud engines are used only when named explicitly with `--engine`, or when `default_engine` in the config file names one.
-`auto` never silently reaches the network.
+`auto` (the default) prefers cloud OCR, in cost order:
+
+1. `mistral` (`mistral-ocr-4-0`) when `MISTRAL_API_KEY` is available.
+2. `gemini` (`gemini-3.5-flash-lite`, free tier) when `GEMINI_API_KEY` is available.
+3. The local engine for the platform otherwise: `rapidocr` on Linux, `glm` on macOS.
+
+An explicit `--engine` always wins, and a `default_engine` in the config file overrides the `auto` order.
+So `--engine rapidocr` or `"default_engine": "rapidocr"` pins the local engine regardless of which keys are set.
+
+Cloud OCR is the default because it is cheap enough that CPU-only local OCR is rarely worth the trouble.
+Mistral OCR is priced at $4 per 1000 pages at the standard rate, and $2 per 1000 pages in batch mode, per Mistral pricing as of 2026-08.
+The OCR endpoint (`POST /v1/ocr`) is billed at the standard rate.
+Gemini stays as the free-tier cloud option, and the local engines stay as an offline fallback.
+
+### Privacy
+
+Cloud engines send page images (or, for Mistral, the native PDF) to a third-party API.
+For sensitive documents, force a local engine so nothing leaves the machine:
+
+```
+doc parse confidential.pdf --engine rapidocr   # or --engine glm
+```
+
+Set `"default_engine": "rapidocr"` (or `"glm"`) in the config to make local the standing default and opt into cloud only per call.
 
 ### Cloud keys
 
-Keys are read from the environment, never from the config file.
+Keys are read from the environment, never stored by the engines in the config file.
 
-- `GEMINI_API_KEY` for the `gemini` engine.
 - `MISTRAL_API_KEY` for the `mistral` engine.
+- `GEMINI_API_KEY` for the `gemini` engine.
+
+With either key present in the environment, `auto` routes to that cloud engine, so exporting the key is all it takes to switch on cloud OCR.
 
 ## Commands
 
@@ -105,7 +128,13 @@ Every key is optional and falls back to a default; secrets are not stored here.
 
 2. A plain `POST /ocr` for direct use, accepting either a multipart file upload (`file` part) or a JSON body `{"file_content": "<base64>", "filename": "x.pdf"}`, and returning `{"markdown": ..., "engine": ..., "kind": ...}`.
 
-`GET /health` reports liveness and the configured engine.
+`GET /health` reports liveness and the resolved engine.
+
+### Server engine default stays local
+
+Unlike the CLI, `doc serve` does not let `auto` reach for a cloud engine just because a key sits in the server's environment.
+The server resolves `auto` to the local platform engine and only uses a cloud engine when you ask for one explicitly, either with `doc serve --engine mistral` or with `"default_engine": "mistral"` in the config.
+This keeps a self-hosted Firecrawl backend from silently sending every document through a paid cloud OCR endpoint and running up a bill.
 
 ### On the PDF_OCR_BASE_URL contract
 
