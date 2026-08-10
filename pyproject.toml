@@ -1,0 +1,45 @@
+[project]
+name = "doc-cli"
+version = "0.1.0"
+description = "Document to markdown CLI: office and PDF parsing with pluggable OCR engines"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+license = { text = "MIT" }
+authors = [{ name = "Sylvain Hellin", email = "hellinsylvain@gmail.com" }]
+dependencies = [
+    "firecrawl-anydoc>=0.1.7",
+    "pdf-inspector>=0.2.6",
+    "rapidocr>=3.9.0",
+    "onnxruntime>=1.28.0",
+    "pillow>=11.0.0",
+    "pypdfium2>=4.30.0",
+    "httpx>=0.28.0",
+]
+
+[project.optional-dependencies]
+# FastAPI server (doc serve): Firecrawl RunPod-MU envelope + plain /ocr
+server = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.34.0",
+    "python-multipart>=0.0.18",
+]
+# GLM-OCR on Apple Silicon via mlx-vlm (macOS arm64 only)
+mlx = [
+    "mlx-vlm>=0.1.0; sys_platform == 'darwin' and platform_machine == 'arm64'",
+]
+
+[project.scripts]
+doc = "doc_cli.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0",
+    "reportlab>=4.2.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.21,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
