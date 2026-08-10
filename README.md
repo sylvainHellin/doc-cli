@@ -108,7 +108,6 @@ Every key is optional and falls back to a default; secrets are not stored here.
 ```json
 {
   "default_engine": "auto",
-  "default_cloud_engine": "gemini",
   "ollama_url": "http://localhost:11434",
   "ollama_model": "glm-ocr",
   "gemini_model": "gemini-3.5-flash-lite",

@@ -27,8 +27,6 @@ def config_path() -> Path:
 class Config:
     # Engine selection: rapidocr | glm | gemini | mistral | auto
     default_engine: str = "auto"
-    # Optional cloud engine to use when auto is asked to go to the cloud.
-    default_cloud_engine: str = "gemini"
     # Ollama HTTP endpoint used by the GLM engine on Linux.
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "glm-ocr"
