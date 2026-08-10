@@ -9,7 +9,8 @@ wheels/
 # Virtual environments
 .venv
 
-# Benchmark outputs (regenerated per run)
+# Benchmark inputs and outputs (may contain personal documents; never commit)
+bench/inputs/
 bench/results/
 
 # Local config / secrets
