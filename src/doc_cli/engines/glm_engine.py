@@ -67,9 +67,21 @@ class GlmEngine(OcrEngine):
             "prompt": PROMPT,
             "images": [b64],
             "stream": False,
+            # A page image is ~4k vision tokens; the default num_ctx of 4096
+            # would leave no room to answer, so raise it and cap num_predict.
+            # Sampling follows GLM-OCR's recommended deterministic settings
+            # (temperature 0, top_p ~0, top_k 1, repeat_penalty 1.1).
+            "options": {
+                "num_ctx": self.config.ollama_num_ctx,
+                "num_predict": self.config.ollama_num_predict,
+                "temperature": 0,
+                "top_p": 0.00001,
+                "top_k": 1,
+                "repeat_penalty": 1.1,
+            },
         }
         try:
-            resp = httpx.post(f"{url}/api/generate", json=payload, timeout=300.0)
+            resp = httpx.post(f"{url}/api/generate", json=payload, timeout=600.0)
         except httpx.HTTPError as exc:
             raise EngineUnavailable(
                 f"GLM via Ollama unreachable at {url}: {exc}. "

@@ -32,6 +32,12 @@ class Config:
     # Ollama HTTP endpoint used by the GLM engine on Linux.
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "glm-ocr"
+    # GLM-OCR context window: a page image tokenizes to ~4k vision tokens, so the
+    # 4096 Ollama default leaves almost no room for the answer. Size it for image
+    # + output. num_predict caps generation to bound latency and stop the small
+    # quant's occasional degenerate repetition loops from running to the ceiling.
+    ollama_num_ctx: int = 8192
+    ollama_num_predict: int = 2048
     # Cloud model ids (overridable, but defaults match the approved design).
     gemini_model: str = "gemini-3.5-flash-lite"
     mistral_model: str = "mistral-ocr-4-0"
