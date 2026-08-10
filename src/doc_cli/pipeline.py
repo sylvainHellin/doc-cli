@@ -110,25 +110,52 @@ def _parse_pdf(path: Path, engine_name: str, config: Config) -> dict[str, Any]:
 
 
 def ocr_files(paths: list[Path], engine_name: str, config: Config) -> dict[str, Any]:
-    """Force the OCR path over one or more image/PDF files."""
-    images: list[bytes] = []
-    for p in paths:
-        p = Path(p)
-        if p.suffix.lower() == ".pdf":
-            page_count = pdf.classify(p).page_count
-            rendered = pdf.render_pages(p, list(range(page_count)))
-            images.extend(rendered[i] for i in range(page_count))
-        else:
-            images.append(_read_image_as_png(p))
+    """Force the OCR path over one or more image/PDF files.
+
+    Mistral accepts native PDF input, so a PDF is sent whole via ``ocr_pdf``
+    without rasterization (``doc ocr`` means OCR every page, so no page
+    sub-setting). Non-PDF inputs and every other engine keep the rendered-image
+    path, with consecutive image-path inputs batched into one ``ocr`` call.
+    """
+    from .engines.mistral_engine import MistralEngine
 
     engine = get_engine(engine_name, config)
     engine.check()
-    result = engine.ocr(images)
+    native_pdf = isinstance(engine, MistralEngine)
+
+    page_texts: list[str] = []
+    structured = engine.structured
+    pending: list[bytes] = []
+
+    def flush() -> None:
+        nonlocal structured
+        if not pending:
+            return
+        result = engine.ocr(pending)
+        page_texts.extend(result.pages)
+        structured = result.structured
+        pending.clear()
+
+    for raw in paths:
+        p = Path(raw)
+        if native_pdf and p.suffix.lower() == ".pdf":
+            flush()
+            result = engine.ocr_pdf(p.read_bytes())
+            page_texts.extend(result.pages)
+            structured = result.structured
+        elif p.suffix.lower() == ".pdf":
+            page_count = pdf.classify(p).page_count
+            rendered = pdf.render_pages(p, list(range(page_count)))
+            pending.extend(rendered[i] for i in range(page_count))
+        else:
+            pending.append(_read_image_as_png(p))
+    flush()
+
     return {
-        "markdown": result.markdown,
+        "markdown": "\n\n".join(page_texts),
         "kind": "ocr",
-        "engine": result.engine,
-        "structured": result.structured,
+        "engine": engine.name,
+        "structured": structured,
         "file": ",".join(str(p) for p in paths),
-        "pages": result.pages,
+        "pages": page_texts,
     }

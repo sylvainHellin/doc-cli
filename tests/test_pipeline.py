@@ -156,6 +156,51 @@ def test_run_pdf_ocr_non_mistral_rasterizes(tmp_path, config):
     assert all(img[:8] == b"\x89PNG\r\n\x1a\n" for img in eng.image_calls[0])
 
 
+def test_ocr_files_mistral_pdf_native(tmp_path, monkeypatch):
+    """`doc ocr` on a PDF with Mistral sends the whole PDF, never rasterizes."""
+    path = _make_pdf(tmp_path, 3)
+    eng = _RecordingMistral(Config(), ["A", "B", "C"])
+    monkeypatch.setattr(pipeline, "get_engine", lambda name, cfg: eng)
+    monkeypatch.setattr(
+        pipeline.pdf,
+        "render_pages",
+        lambda *a, **k: pytest.fail("render_pages called on Mistral PDF path"),
+    )
+    result = ocr_files([path], "mistral", Config())
+    # Native PDF call, no image path.
+    assert eng.image_calls == []
+    assert len(eng.pdf_calls) == 1
+    # Whole PDF sent verbatim (all pages), no subsetting.
+    assert eng.pdf_calls[0] == path.read_bytes()
+    assert _page_count(eng.pdf_calls[0]) == 3
+    assert result["engine"] == "mistral"
+    assert result["structured"] is True
+    assert result["markdown"] == "A\n\nB\n\nC"
+    assert result["pages"] == ["A", "B", "C"]
+
+
+def test_ocr_files_non_mistral_pdf_rasterizes(tmp_path, monkeypatch):
+    """Other engines keep the rendered-image path for a PDF."""
+    path = _make_pdf(tmp_path, 2)
+    eng = _RecordingImageEngine(Config(), ["p0", "p1"])
+    real_render = pdf.render_pages
+    calls = {"n": 0}
+
+    def spy(p, indices, *a, **k):
+        calls["n"] += 1
+        return real_render(p, indices, *a, **k)
+
+    monkeypatch.setattr(pipeline, "get_engine", lambda name, cfg: eng)
+    monkeypatch.setattr(pipeline.pdf, "render_pages", spy)
+    result = ocr_files([path], "rapidocr", Config())
+    assert calls["n"] == 1
+    assert len(eng.image_calls) == 1
+    assert len(eng.image_calls[0]) == 2
+    assert all(img[:8] == b"\x89PNG\r\n\x1a\n" for img in eng.image_calls[0])
+    assert result["engine"] == "rapidocr"
+    assert result["markdown"] == "p0\n\np1"
+
+
 def test_parse_pdf_mistral_splices(tmp_path, monkeypatch):
     """OCR markdown is spliced back into born-digital pages at the right index."""
     path = _make_pdf(tmp_path, 3)
