@@ -19,19 +19,83 @@ def test_resolve_explicit():
     assert resolve_engine_name("gemini", cfg) == "gemini"
 
 
+def _clear_cloud_keys(monkeypatch):
+    monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+
+
 def test_resolve_auto_linux(monkeypatch):
+    _clear_cloud_keys(monkeypatch)
     cfg = Config(default_engine="auto")
     monkeypatch.setattr("platform.system", lambda: "Linux")
     assert resolve_engine_name("auto", cfg) == "rapidocr"
 
 
 def test_resolve_auto_macos(monkeypatch):
+    _clear_cloud_keys(monkeypatch)
     cfg = Config(default_engine="auto")
     monkeypatch.setattr("platform.system", lambda: "Darwin")
     assert resolve_engine_name("auto", cfg) == "glm"
 
 
-def test_resolve_auto_config_cloud_default():
+def test_resolve_auto_prefers_mistral(monkeypatch):
+    """With MISTRAL_API_KEY set, auto picks mistral over local and gemini."""
+    _clear_cloud_keys(monkeypatch)
+    monkeypatch.setenv("MISTRAL_API_KEY", "sk-test")
+    monkeypatch.setenv("GEMINI_API_KEY", "g-test")
+    monkeypatch.setattr("platform.system", lambda: "Linux")
+    assert resolve_engine_name("auto", Config(default_engine="auto")) == "mistral"
+
+
+def test_resolve_auto_falls_back_to_gemini(monkeypatch):
+    """Only GEMINI_API_KEY set: auto picks gemini over the local engine."""
+    _clear_cloud_keys(monkeypatch)
+    monkeypatch.setenv("GEMINI_API_KEY", "g-test")
+    monkeypatch.setattr("platform.system", lambda: "Linux")
+    assert resolve_engine_name("auto", Config(default_engine="auto")) == "gemini"
+
+
+def test_resolve_auto_falls_back_to_local(monkeypatch):
+    """No cloud key: auto stays on the local platform engine."""
+    _clear_cloud_keys(monkeypatch)
+    monkeypatch.setattr("platform.system", lambda: "Darwin")
+    assert resolve_engine_name("auto", Config(default_engine="auto")) == "glm"
+
+
+def test_resolve_auto_key_from_config(monkeypatch):
+    """A cloud key present only in config (not env) still drives auto."""
+    _clear_cloud_keys(monkeypatch)
+    cfg = Config(default_engine="auto")
+    cfg.raw = {"MISTRAL_API_KEY": "sk-cfg"}
+    monkeypatch.setattr("platform.system", lambda: "Linux")
+    assert resolve_engine_name("auto", cfg) == "mistral"
+
+
+def test_resolve_prefer_cloud_false_stays_local(monkeypatch):
+    """Server path: cloud keys in env do not override the local engine."""
+    _clear_cloud_keys(monkeypatch)
+    monkeypatch.setenv("MISTRAL_API_KEY", "sk-test")
+    monkeypatch.setattr("platform.system", lambda: "Linux")
+    cfg = Config(default_engine="auto")
+    assert resolve_engine_name("auto", cfg, prefer_cloud=False) == "rapidocr"
+
+
+def test_resolve_prefer_cloud_false_honors_config_cloud(monkeypatch):
+    """Server path: an explicit cloud default_engine is still honored."""
+    _clear_cloud_keys(monkeypatch)
+    cfg = Config(default_engine="mistral")
+    assert resolve_engine_name("auto", cfg, prefer_cloud=False) == "mistral"
+
+
+def test_resolve_explicit_overrides_cloud_keys(monkeypatch):
+    """An explicit --engine wins even when a cloud key is set."""
+    monkeypatch.setenv("MISTRAL_API_KEY", "sk-test")
+    monkeypatch.setattr("platform.system", lambda: "Linux")
+    assert resolve_engine_name("rapidocr", Config(default_engine="auto")) == "rapidocr"
+
+
+def test_resolve_auto_config_cloud_default(monkeypatch):
+    _clear_cloud_keys(monkeypatch)
     cfg = Config(default_engine="gemini")
     assert resolve_engine_name("auto", cfg) == "gemini"
 

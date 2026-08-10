@@ -8,6 +8,7 @@ from ``ocr`` (or from a lightweight ``check()``), never a bare import error.
 
 from __future__ import annotations
 
+import os
 import platform
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -53,13 +54,34 @@ class OcrEngine(ABC):
         """OCR a list of encoded page images into an OcrResult."""
 
 
-def resolve_engine_name(requested: str, config: "Config") -> str:
-    """Resolve 'auto' to a concrete engine name based on platform and config.
+def _cloud_key_present(env_name: str, config: "Config") -> bool:
+    """True if a cloud API key is available in the environment or config.
 
-    auto -> local engine for the platform (Linux: rapidocr, macOS: glm),
-    unless the config names a cloud engine as the default, in which case that
-    cloud engine is used. Cloud engines are only chosen when explicitly asked
-    for or configured as default; auto never silently reaches the network.
+    The engines themselves read the key only from the environment; this
+    presence check also honors a key placed in the config file so that auto
+    selection can prefer a configured cloud engine, but the environment stays
+    the recommended home for secrets.
+    """
+    if os.environ.get(env_name):
+        return True
+    return bool(config.raw.get(env_name))
+
+
+def resolve_engine_name(
+    requested: str, config: "Config", *, prefer_cloud: bool = True
+) -> str:
+    """Resolve 'auto' to a concrete engine name based on keys, platform, config.
+
+    Precedence: an explicit ``requested`` engine wins, then a ``default_engine``
+    named in the config. Otherwise ``auto`` resolves by cost-aware preference:
+    Mistral OCR if MISTRAL_API_KEY is available, else Gemini if GEMINI_API_KEY
+    is available, else the local engine for the platform (Linux: rapidocr,
+    macOS: glm).
+
+    ``prefer_cloud=False`` disables the cloud preference so ``auto`` stays local
+    unless the config explicitly names a cloud ``default_engine``. The server
+    uses this so that a stray cloud key in its environment never silently sends
+    Firecrawl traffic to a paid endpoint.
     """
     if requested != "auto":
         if requested not in ENGINE_NAMES:
@@ -71,6 +93,12 @@ def resolve_engine_name(requested: str, config: "Config") -> str:
         if configured not in ENGINE_NAMES:
             raise ValueError(f"unknown default_engine in config: {configured}")
         return configured
+
+    if prefer_cloud:
+        if _cloud_key_present("MISTRAL_API_KEY", config):
+            return "mistral"
+        if _cloud_key_present("GEMINI_API_KEY", config):
+            return "gemini"
 
     system = platform.system()
     if system == "Darwin":

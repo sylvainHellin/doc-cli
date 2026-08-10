@@ -20,7 +20,10 @@ def _add_engine_flag(sp: argparse.ArgumentParser) -> None:
         "--engine",
         choices=ENGINE_CHOICES,
         default="auto",
-        help="OCR engine (auto: rapidocr on Linux, glm on macOS)",
+        help=(
+            "OCR engine (auto: mistral if MISTRAL_API_KEY, else gemini if "
+            "GEMINI_API_KEY, else local: rapidocr on Linux, glm on macOS)"
+        ),
     )
 
 

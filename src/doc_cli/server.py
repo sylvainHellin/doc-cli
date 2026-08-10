@@ -42,6 +42,14 @@ def _process_bytes(data: bytes, filename: str, engine_name: str, config: Config)
 
 
 def build_app(config: Config, engine_name: str = "auto"):
+    from .engines.base import resolve_engine_name
+
+    # Resolve once, local-first: auto stays on the local engine unless the
+    # config explicitly names a cloud default_engine. This keeps a self-hosted
+    # Firecrawl backend from silently billing a paid cloud OCR endpoint just
+    # because a cloud key happens to sit in the server's environment.
+    engine_name = resolve_engine_name(engine_name, config, prefer_cloud=False)
+
     app = FastAPI(title="doc-cli OCR server")
 
     async def _mu(request: Request) -> JSONResponse:
