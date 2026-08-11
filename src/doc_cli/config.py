@@ -59,3 +59,34 @@ class Config:
         cfg = cls(**kwargs)
         cfg.raw = data
         return cfg
+
+
+# Maps the engine name a user types to the env var / config key holding its secret.
+CLOUD_KEY_NAMES = {
+    "mistral": "MISTRAL_API_KEY",
+    "gemini": "GEMINI_API_KEY",
+}
+
+
+def set_cloud_key(engine: str, key: str) -> Path:
+    """Store a cloud API key in the config file, mirroring ``zot config set-key``.
+
+    Merges into the existing config so other settings are preserved, writes with
+    owner-only permissions since the file now holds a secret, and returns the
+    path written. The environment still overrides this at read time.
+    """
+    env_name = CLOUD_KEY_NAMES.get(engine)
+    if env_name is None:
+        raise ValueError(f"unknown cloud engine: {engine} (expected one of {sorted(CLOUD_KEY_NAMES)})")
+    path = config_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data: dict[str, Any] = {}
+    if path.is_file():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError) as exc:
+            raise SystemExit(f"failed to read config {path}: {exc}") from exc
+    data[env_name] = key
+    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    path.chmod(0o600)
+    return path

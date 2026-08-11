@@ -79,12 +79,26 @@ Set `"default_engine": "rapidocr"` (or `"glm"`) in the config to make local the 
 
 ### Cloud keys
 
-Keys are read from the environment, never stored by the engines in the config file.
+A cloud engine needs its key, read from the environment first and from the config file as a fallback.
 
 - `MISTRAL_API_KEY` for the `mistral` engine.
 - `GEMINI_API_KEY` for the `gemini` engine.
 
-With either key present in the environment, `auto` routes to that cloud engine, so exporting the key is all it takes to switch on cloud OCR.
+With either key present, `auto` routes to that cloud engine, so providing the key is all it takes to switch on cloud OCR.
+
+Two ways to provide it:
+
+- Export it in the environment (`export MISTRAL_API_KEY=...`).
+  This wins over a stored key and leaves nothing on disk.
+- Store it once in the config file so a globally installed `doc` works with nothing exported, mirroring `zot config set-key`:
+
+  ```
+  doc config set-key mistral <key>
+  doc config set-key gemini <key>
+  ```
+
+  This writes the key into `~/.config/doc/config.json` and tightens the file to owner-only (`0600`).
+  The key sits there in plaintext, so keep that file out of any synced or version-controlled tree.
 
 ## Commands
 
@@ -103,7 +117,8 @@ Global flags:
 ## Configuration
 
 Config lives at `~/.config/doc/config.json` (override with `DOC_CONFIG`).
-Every key is optional and falls back to a default; secrets are not stored here.
+Every setting below is optional and falls back to a default.
+A cloud key may also live here (see Cloud keys above), written by `doc config set-key`, in which case the file is tightened to `0600`; the environment still overrides it.
 
 ```json
 {

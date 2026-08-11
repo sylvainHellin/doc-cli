@@ -122,6 +122,25 @@ def test_gemini_requires_key(monkeypatch):
         GeminiEngine(Config()).check()
 
 
+def test_gemini_key_from_config(monkeypatch):
+    """With no env var, the engine reads the key stored in the config file."""
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    cfg = Config()
+    cfg.raw = {"GEMINI_API_KEY": "g-cfg"}
+    eng = GeminiEngine(cfg)
+    eng.check()  # no raise
+    _, headers, _ = eng.build_request(b"png")
+    assert headers["x-goog-api-key"] == "g-cfg"
+
+
+def test_gemini_env_overrides_config(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "g-env")
+    cfg = Config()
+    cfg.raw = {"GEMINI_API_KEY": "g-cfg"}
+    _, headers, _ = GeminiEngine(cfg).build_request(b"png")
+    assert headers["x-goog-api-key"] == "g-env"
+
+
 def test_gemini_parse_response():
     data = {"candidates": [{"content": {"parts": [{"text": "# Title"}, {"text": " body"}]}}]}
     assert GeminiEngine.parse_response(data) == "# Title body"
@@ -155,3 +174,22 @@ def test_mistral_requires_key(monkeypatch):
     monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
     with pytest.raises(EngineUnavailable):
         MistralEngine(Config()).check()
+
+
+def test_mistral_key_from_config(monkeypatch):
+    """With no env var, the engine reads the key stored in the config file."""
+    monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
+    cfg = Config()
+    cfg.raw = {"MISTRAL_API_KEY": "sk-cfg"}
+    eng = MistralEngine(cfg)
+    eng.check()  # no raise
+    _, headers, _ = eng.build_image_request(b"img")
+    assert headers["Authorization"] == "Bearer sk-cfg"
+
+
+def test_mistral_env_overrides_config(monkeypatch):
+    monkeypatch.setenv("MISTRAL_API_KEY", "sk-env")
+    cfg = Config()
+    cfg.raw = {"MISTRAL_API_KEY": "sk-cfg"}
+    _, headers, _ = MistralEngine(cfg).build_image_request(b"img")
+    assert headers["Authorization"] == "Bearer sk-env"

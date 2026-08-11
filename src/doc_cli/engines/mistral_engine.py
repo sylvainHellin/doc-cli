@@ -1,18 +1,17 @@
 """Mistral OCR cloud engine: mistral-ocr-4-0 via POST /v1/ocr.
 
 Mistral OCR accepts native PDF input (base64 document) and image input, and
-returns markdown per page. Key from MISTRAL_API_KEY. Request construction is
-unit-tested offline.
+returns markdown per page. Key from MISTRAL_API_KEY, falling back to a key
+stored in the config file. Request construction is unit-tested offline.
 """
 
 from __future__ import annotations
 
 import base64
-import os
 
 import httpx
 
-from .base import EngineUnavailable, OcrEngine, OcrResult
+from .base import EngineUnavailable, OcrEngine, OcrResult, cloud_key
 
 API_URL = "https://api.mistral.ai/v1/ocr"
 
@@ -22,13 +21,14 @@ class MistralEngine(OcrEngine):
     structured = True
 
     def check(self) -> None:
-        if not os.environ.get("MISTRAL_API_KEY"):
-            raise EngineUnavailable("MISTRAL_API_KEY is not set")
+        self._api_key()
 
     def _api_key(self) -> str:
-        key = os.environ.get("MISTRAL_API_KEY")
+        key = cloud_key("MISTRAL_API_KEY", self.config)
         if not key:
-            raise EngineUnavailable("MISTRAL_API_KEY is not set")
+            raise EngineUnavailable(
+                "MISTRAL_API_KEY is not set (export it or run: doc config set-key mistral <key>)"
+            )
         return key
 
     def build_image_request(self, image: bytes, mime: str = "image/png") -> tuple[str, dict, dict]:

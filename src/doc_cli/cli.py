@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .config import Config
+from .config import CLOUD_KEY_NAMES, Config, set_cloud_key
 from .engines import EngineUnavailable
 from .engines.base import ENGINE_NAMES
 from .output import emit
@@ -48,6 +48,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_serve.add_argument("--host", default="127.0.0.1")
     p_serve.add_argument("--port", type=int, default=8080)
     _add_engine_flag(p_serve)
+
+    p_config = sub.add_parser("config", help="manage the config file")
+    config_sub = p_config.add_subparsers(dest="config_command", required=True)
+    p_set_key = config_sub.add_parser(
+        "set-key", help="store a cloud API key in the config file (no env var needed)"
+    )
+    p_set_key.add_argument("engine", choices=sorted(CLOUD_KEY_NAMES))
+    p_set_key.add_argument("key", help="the API key to store")
 
     return parser
 
@@ -91,6 +99,14 @@ def cmd_ocr(args, config: Config) -> int:
     return 0
 
 
+def cmd_config(args, config: Config) -> int:
+    if args.config_command == "set-key":
+        path = set_cloud_key(args.engine, args.key)
+        print(f"stored {CLOUD_KEY_NAMES[args.engine]} in {path}")
+        return 0
+    return 2
+
+
 def cmd_serve(args, config: Config) -> int:
     try:
         from .server import run
@@ -113,6 +129,7 @@ def main(argv: list[str] | None = None) -> int:
         "inspect": cmd_inspect,
         "ocr": cmd_ocr,
         "serve": cmd_serve,
+        "config": cmd_config,
     }
     try:
         return handlers[args.command](args, config)

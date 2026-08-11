@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 
-from doc_cli.config import Config
+import pytest
+
+from doc_cli.config import Config, set_cloud_key
 
 
 def test_defaults():
@@ -32,3 +34,23 @@ def test_load_missing_file(tmp_path, monkeypatch):
     monkeypatch.setenv("DOC_CONFIG", str(tmp_path / "nope.json"))
     cfg = Config.load()
     assert cfg.default_engine == "auto"
+
+
+def test_set_cloud_key_writes_and_preserves(tmp_path, monkeypatch):
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({"default_engine": "mistral"}))
+    monkeypatch.setenv("DOC_CONFIG", str(path))
+    written = set_cloud_key("mistral", "sk-secret")
+    assert written == path
+    data = json.loads(path.read_text())
+    assert data["MISTRAL_API_KEY"] == "sk-secret"
+    assert data["default_engine"] == "mistral"  # existing settings preserved
+    assert path.stat().st_mode & 0o777 == 0o600  # secret file is owner-only
+    # And Config.load surfaces it so the engine can read it.
+    assert Config.load().raw["MISTRAL_API_KEY"] == "sk-secret"
+
+
+def test_set_cloud_key_rejects_unknown_engine(tmp_path, monkeypatch):
+    monkeypatch.setenv("DOC_CONFIG", str(tmp_path / "config.json"))
+    with pytest.raises(ValueError):
+        set_cloud_key("rapidocr", "x")

@@ -1,18 +1,17 @@
 """Gemini cloud OCR engine: gemini-3.5-flash-lite (free-tier friendly default).
 
 Sends page images to the Gemini generateContent endpoint and returns markdown.
-Key from GEMINI_API_KEY. Request construction is unit-tested offline; no live
-call is made during tests.
+Key from GEMINI_API_KEY, falling back to a key stored in the config file.
+Request construction is unit-tested offline; no live call is made during tests.
 """
 
 from __future__ import annotations
 
 import base64
-import os
 
 import httpx
 
-from .base import EngineUnavailable, OcrEngine, OcrResult
+from .base import EngineUnavailable, OcrEngine, OcrResult, cloud_key
 
 PROMPT = (
     "Transcribe this document image to clean GitHub-Flavored Markdown. "
@@ -26,13 +25,14 @@ class GeminiEngine(OcrEngine):
     structured = True
 
     def check(self) -> None:
-        if not os.environ.get("GEMINI_API_KEY"):
-            raise EngineUnavailable("GEMINI_API_KEY is not set")
+        self._api_key()
 
     def _api_key(self) -> str:
-        key = os.environ.get("GEMINI_API_KEY")
+        key = cloud_key("GEMINI_API_KEY", self.config)
         if not key:
-            raise EngineUnavailable("GEMINI_API_KEY is not set")
+            raise EngineUnavailable(
+                "GEMINI_API_KEY is not set (export it or run: doc config set-key gemini <key>)"
+            )
         return key
 
     def build_request(self, image: bytes, mime: str = "image/png") -> tuple[str, dict, dict]:

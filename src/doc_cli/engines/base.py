@@ -54,17 +54,24 @@ class OcrEngine(ABC):
         """OCR a list of encoded page images into an OcrResult."""
 
 
-def _cloud_key_present(env_name: str, config: "Config") -> bool:
-    """True if a cloud API key is available in the environment or config.
+def cloud_key(env_name: str, config: "Config") -> str | None:
+    """Resolve a cloud API key from the environment, then the config file.
 
-    The engines themselves read the key only from the environment; this
-    presence check also honors a key placed in the config file so that auto
-    selection can prefer a configured cloud engine, but the environment stays
-    the recommended home for secrets.
+    The environment wins so a shell export always overrides a stored key, but a
+    key written into ~/.config/doc/config.json (via ``doc config set-key``) is a
+    valid home too, mirroring how ``zot`` stores its key. This lets a globally
+    installed ``doc`` reach a cloud engine with nothing in the environment.
     """
-    if os.environ.get(env_name):
-        return True
-    return bool(config.raw.get(env_name))
+    env = os.environ.get(env_name)
+    if env:
+        return env
+    stored = config.raw.get(env_name)
+    return stored if isinstance(stored, str) and stored else None
+
+
+def _cloud_key_present(env_name: str, config: "Config") -> bool:
+    """True if a cloud API key is available in the environment or config."""
+    return cloud_key(env_name, config) is not None
 
 
 def resolve_engine_name(
