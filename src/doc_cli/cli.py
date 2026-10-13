@@ -10,7 +10,7 @@ from . import __version__
 from .config import CLOUD_KEY_NAMES, Config, set_cloud_key
 from .engines import EngineUnavailable
 from .engines.base import ENGINE_NAMES
-from .output import emit
+from .output import OutputError, emit
 
 ENGINE_CHOICES = ("auto", *ENGINE_NAMES)
 
@@ -27,6 +27,18 @@ def _add_engine_flag(sp: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_output_flag(sp: argparse.ArgumentParser) -> None:
+    sp.add_argument(
+        "-o",
+        "--output",
+        metavar="FILE",
+        help=(
+            "write the full output (Markdown, or JSON with --json) to FILE instead of "
+            "stdout; creates parent dirs, overwrites, never spills; '-' = stdout"
+        ),
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="doc", description="Document to markdown CLI")
     parser.add_argument("--version", action="version", version=f"doc {__version__}")
@@ -36,6 +48,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_parse = sub.add_parser("parse", help="full pipeline: office/pdf/image -> markdown")
     p_parse.add_argument("file")
     _add_engine_flag(p_parse)
+    _add_output_flag(p_parse)
 
     p_inspect = sub.add_parser("inspect", help="pdf-inspector classification report")
     p_inspect.add_argument("file")
@@ -43,6 +56,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_ocr = sub.add_parser("ocr", help="force the OCR path over a file or image")
     p_ocr.add_argument("file", nargs="+")
     _add_engine_flag(p_ocr)
+    _add_output_flag(p_ocr)
 
     p_serve = sub.add_parser("serve", help="run the OCR HTTP server")
     p_serve.add_argument("--host", default="127.0.0.1")
@@ -64,7 +78,13 @@ def cmd_parse(args, config: Config) -> int:
     from .pipeline import parse
 
     result = parse(args.file, args.engine, config)
-    emit(result, as_json=args.json, text_key="markdown", threshold=config.spill_threshold)
+    emit(
+        result,
+        as_json=args.json,
+        text_key="markdown",
+        threshold=config.spill_threshold,
+        output=args.output,
+    )
     return 0
 
 
@@ -95,7 +115,13 @@ def cmd_ocr(args, config: Config) -> int:
     from .pipeline import ocr_files
 
     result = ocr_files([Path(f) for f in args.file], args.engine, config)
-    emit(result, as_json=args.json, text_key="markdown", threshold=config.spill_threshold)
+    emit(
+        result,
+        as_json=args.json,
+        text_key="markdown",
+        threshold=config.spill_threshold,
+        output=args.output,
+    )
     return 0
 
 
@@ -136,7 +162,7 @@ def main(argv: list[str] | None = None) -> int:
     except EngineUnavailable as exc:
         print(f"engine unavailable: {exc}", file=sys.stderr)
         return 3
-    except (FileNotFoundError, ValueError) as exc:
+    except (FileNotFoundError, ValueError, OutputError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
