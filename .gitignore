@@ -16,3 +16,6 @@ bench/results/
 # Local config / secrets
 *.env
 .env
+
+# Agent workflow scratch
+.agents/
