@@ -103,16 +103,18 @@ Two ways to provide it:
 ## Commands
 
 ```
-doc parse <file>                 # full pipeline (office/pdf/image), Markdown out
-doc inspect <file.pdf>           # pdf-inspector classification report
-doc ocr <file|image> [--engine]  # force the OCR path
-doc serve [--host] [--port]      # run the OCR HTTP server (needs [server] extra)
+doc parse <file> [-o FILE]                    # full pipeline (office/pdf/image), Markdown out
+doc inspect <file.pdf>                        # pdf-inspector classification report
+doc ocr <file|image>... [--engine] [-o FILE]  # force the OCR path
+doc serve [--host] [--port]                   # run the OCR HTTP server (needs [server] extra)
 ```
 
 Global flags:
 
 - `--json` emits a structured JSON payload instead of human text.
-- Text output larger than 30000 characters (configurable) is written to a temp file and the path is printed instead, so a large document never floods the terminal.
+- `-o/--output FILE` (parse, ocr) writes the full output to FILE, JSON too with `--json`, creating parent directories and overwriting; `-` prints the full output to stdout.
+- Without `-o`, text output larger than 30000 characters (configurable) is written to a temp file and the path is printed instead, so a large document never floods the terminal.
+  Use `-o` rather than `>` to save a large document to a file.
 
 ## Configuration
 
