@@ -31,15 +31,14 @@ def render(payload: dict[str, Any], *, as_json: bool, text_key: str) -> str:
     return text if isinstance(text, str) else str(text)
 
 
-def write_output(content: str, path: str) -> int:
-    """Write content to path (UTF-8, overwrite, parents created). Returns len(content)."""
+def write_output(content: str, path: str) -> None:
+    """Write content to path (UTF-8, overwrite, parents created)."""
     target = Path(path).expanduser()
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
     except OSError as exc:
         raise OutputError(f"cannot write {path}: {exc.strerror or exc}") from exc
-    return len(content)
 
 
 def emit(

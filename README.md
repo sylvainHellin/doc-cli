@@ -109,10 +109,13 @@ doc ocr <file|image>... [--engine] [-o FILE]  # force the OCR path
 doc serve [--host] [--port]                   # run the OCR HTTP server (needs [server] extra)
 ```
 
-Global flags:
+Global flags (before the subcommand, e.g. `doc --json parse f.pdf`):
 
 - `--json` emits a structured JSON payload instead of human text.
-- `-o/--output FILE` (parse, ocr) writes the full output to FILE, JSON too with `--json`, creating parent directories and overwriting; `-` prints the full output to stdout.
+
+Subcommand flags (after `parse` or `ocr`, e.g. `doc parse f.pdf -o out.md`):
+
+- `-o/--output FILE` writes the full output to FILE, JSON too with `--json`, creating parent directories and overwriting; `-` prints the full output to stdout.
 - Without `-o`, text output larger than 30000 characters (configurable) is written to a temp file and the path is printed instead, so a large document never floods the terminal.
   Use `-o` rather than `>` to save a large document to a file.
 

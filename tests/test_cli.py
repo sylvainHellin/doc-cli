@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -112,12 +113,14 @@ def test_unwritable_target_read_only_dir(cli_env, tmp_path, capsys):
     assert "Traceback" not in captured.err
 
 
-def test_default_large_output_spills(cli_env, capsys):
+def test_default_large_output_spills(cli_env, tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
     rc = main(["parse", "x.pdf"])
     captured = capsys.readouterr()
     assert rc == 0
     assert captured.err.startswith(f"[output {len(BIG)} chars spilled to]")
     spill_path = Path(captured.out.strip())
+    assert spill_path.parent == tmp_path
     assert spill_path.read_text(encoding="utf-8") == BIG
 
 
