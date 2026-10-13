@@ -13,7 +13,7 @@ def test_defaults():
     cfg = Config()
     assert cfg.default_engine == "auto"
     assert cfg.gemini_model == "gemini-3.5-flash-lite"
-    assert cfg.mistral_model == "mistral-ocr-4-0"
+    assert cfg.mistral_model == "mistral-ocr-4-1"
     assert cfg.spill_threshold == 30_000
 
 

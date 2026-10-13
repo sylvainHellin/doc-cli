@@ -152,7 +152,7 @@ def test_mistral_image_request(monkeypatch):
     url, headers, body = eng.build_image_request(b"imgbytes", mime="image/png")
     assert url.endswith("/v1/ocr")
     assert headers["Authorization"] == "Bearer sk-test"
-    assert body["model"] == "mistral-ocr-4-0"
+    assert body["model"] == "mistral-ocr-4-1"
     assert body["document"]["type"] == "image_url"
     assert body["document"]["image_url"].startswith("data:image/png;base64,")
 

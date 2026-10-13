@@ -37,7 +37,7 @@ An engine that cannot run in the current environment raises `EngineUnavailable` 
 
 | Engine | Where | Model | Output |
 | --- | --- | --- | --- |
-| `mistral` | Cloud, default when MISTRAL_API_KEY is set | `mistral-ocr-4-0`, native PDF input | Markdown |
+| `mistral` | Cloud, default when MISTRAL_API_KEY is set | `mistral-ocr-4-1`, native PDF input | Markdown |
 | `gemini` | Cloud, free-tier fallback | `gemini-3.5-flash-lite` | Markdown |
 | `rapidocr` | Local, CPU, offline fallback on Linux | RapidOCR-ONNX v3.9.x (PP-OCRv6) | Plain text lines assembled in reading order (no invented Markdown structure) |
 | `glm` | Local, offline fallback on macOS arm64 (mlx-vlm) or Linux (Ollama HTTP) | GLM-OCR 0.9B (MIT) | Markdown |
@@ -54,7 +54,7 @@ doc parse file.pdf --engine rapidocr|glm|gemini|mistral|auto
 
 `auto` (the default) prefers cloud OCR, in cost order:
 
-1. `mistral` (`mistral-ocr-4-0`) when `MISTRAL_API_KEY` is available.
+1. `mistral` (`mistral-ocr-4-1`) when `MISTRAL_API_KEY` is available.
 2. `gemini` (`gemini-3.5-flash-lite`, free tier) when `GEMINI_API_KEY` is available.
 3. The local engine for the platform otherwise: `rapidocr` on Linux, `glm` on macOS.
 
@@ -131,7 +131,7 @@ A cloud key may also live here (see Cloud keys above), written by `doc config se
   "ollama_url": "http://localhost:11434",
   "ollama_model": "glm-ocr",
   "gemini_model": "gemini-3.5-flash-lite",
-  "mistral_model": "mistral-ocr-4-0",
+  "mistral_model": "mistral-ocr-4-1",
   "mlx_model": "mlx-community/GLM-OCR-bf16",
   "spill_threshold": 30000
 }

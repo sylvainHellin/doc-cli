@@ -1,4 +1,4 @@
-"""Mistral OCR cloud engine: mistral-ocr-4-0 via POST /v1/ocr.
+"""Mistral OCR cloud engine: mistral-ocr-4-1 via POST /v1/ocr.
 
 Mistral OCR accepts native PDF input (base64 document) and image input, and
 returns markdown per page. Key from MISTRAL_API_KEY, falling back to a key

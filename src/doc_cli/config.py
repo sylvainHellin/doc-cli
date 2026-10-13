@@ -38,7 +38,7 @@ class Config:
     ollama_num_predict: int = 2048
     # Cloud model ids (overridable, but defaults match the approved design).
     gemini_model: str = "gemini-3.5-flash-lite"
-    mistral_model: str = "mistral-ocr-4-0"
+    mistral_model: str = "mistral-ocr-4-1"
     # MLX model id used by the GLM engine on macOS arm64.
     mlx_model: str = "mlx-community/GLM-OCR-bf16"
     # Threshold (chars) above which CLI output is spilled to a temp file.
