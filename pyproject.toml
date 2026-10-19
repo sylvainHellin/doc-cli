@@ -27,6 +27,11 @@ server = [
 mlx = [
     "mlx-vlm>=0.1.0; sys_platform == 'darwin' and platform_machine == 'arm64'",
 ]
+# Indra OCR (datalab-to/indra-ocr): opt-in local engine, --engine indra.
+# Code Apache-2.0; weights OpenRAIL-M (modified), see README.
+indra = [
+    "indra-ocr>=0.3.2",
+]
 
 [project.scripts]
 doc = "doc_cli.cli:main"

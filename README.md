@@ -17,9 +17,11 @@ The OCR ecosystem doc-cli depends on (RapidOCR-ONNX, GLM-OCR via mlx-vlm, the pd
 uv sync                 # core: office + pdf parsing + rapidocr
 uv sync --extra server  # add the FastAPI OCR server (doc serve)
 uv sync --extra mlx     # macOS arm64 only: GLM-OCR via mlx-vlm
+uv sync --extra indra   # Indra OCR (opt-in local engine, --engine indra)
 ```
 
 Run the CLI with `uv run doc ...`, or install the console script into a tool environment with `uv tool install .`.
+To get the Indra engine in the installed `doc`, include the extra: `uv tool install --reinstall '.[indra]'`.
 
 ## Pipeline
 
@@ -41,15 +43,19 @@ An engine that cannot run in the current environment raises `EngineUnavailable` 
 | `gemini` | Cloud, free-tier fallback | `gemini-3.5-flash-lite` | Markdown |
 | `rapidocr` | Local, CPU, offline fallback on Linux | RapidOCR-ONNX v3.9.x (PP-OCRv6) | Plain text lines assembled in reading order (no invented Markdown structure) |
 | `glm` | Local, offline fallback on macOS arm64 (mlx-vlm) or Linux (Ollama HTTP) | GLM-OCR 0.9B (MIT) | Markdown |
+| `indra` | Local, CPU, opt-in only (`[indra]` extra) | Indra OCR 0.3.x (datalab-to/indra-ocr); code Apache-2.0, weights OpenRAIL-M (modified): free for research and for companies under 20M USD revenue and funding, not for products competing with Datalab | Markdown with HTML tables |
 
 RapidOCR is the fast classical path: sub-second per page on CPU, strong on plain text, no tables or math.
 GLM-OCR is a small document VLM: higher-quality Markdown with tables and formulas, but slow on a CPU-only server, so on Linux it is opt-in and reached through an Ollama server you run yourself.
-No model weights are downloaded during install; RapidOCR fetches its ONNX models on first use, and the GLM backends require a server or the `mlx` extra you set up separately.
+Indra is a 1M-parameter line recognizer with a layout and reading-order model: on typed German business documents it returns paragraphs, headings and one table row per price position at about 0.5 s per page on CPU, but it reads degraded scans and handwriting worse than Mistral (benchmark of 2026-10-19 in `.sync/2026-10-19_indra-vs-mistral.html`).
+doc-cli calls it only on the pages pdf-inspector flags for OCR, keeps page headers and footers (Indra drops them by default, letterheads included), and leaves Indra's orientation model off because it turned an upright mixed-orientation page by 270 degrees; set `"indra_auto_rotate": true` for scans that arrive sideways.
+The weights licence matters for Basenord: a product that competes with Datalab may not use them.
+No model weights are downloaded during install; RapidOCR and Indra fetch their ONNX models on first use (Indra from Hugging Face, or from `INDRA_OCR_MODEL_DIR`), and the GLM backends require a server or the `mlx` extra you set up separately.
 
 ### Engine selection
 
 ```
-doc parse file.pdf --engine rapidocr|glm|gemini|mistral|auto
+doc parse file.pdf --engine rapidocr|glm|gemini|mistral|indra|auto
 ```
 
 `auto` (the default) prefers cloud OCR, in cost order:
@@ -57,6 +63,8 @@ doc parse file.pdf --engine rapidocr|glm|gemini|mistral|auto
 1. `mistral` (`mistral-ocr-4-1`) when `MISTRAL_API_KEY` is available.
 2. `gemini` (`gemini-3.5-flash-lite`, free tier) when `GEMINI_API_KEY` is available.
 3. The local engine for the platform otherwise: `rapidocr` on Linux, `glm` on macOS.
+
+`auto` never picks `indra`; it runs only when named with `--engine indra` or `"default_engine": "indra"`.
 
 An explicit `--engine` always wins, and a `default_engine` in the config file overrides the `auto` order.
 So `--engine rapidocr` or `"default_engine": "rapidocr"` pins the local engine regardless of which keys are set.
@@ -72,7 +80,7 @@ Cloud engines send page images (or, for Mistral, the native PDF) to a third-part
 For sensitive documents, force a local engine so nothing leaves the machine:
 
 ```
-doc parse confidential.pdf --engine rapidocr   # or --engine glm
+doc parse confidential.pdf --engine rapidocr   # or --engine glm, --engine indra
 ```
 
 Set `"default_engine": "rapidocr"` (or `"glm"`) in the config to make local the standing default and opt into cloud only per call.
@@ -133,9 +141,13 @@ A cloud key may also live here (see Cloud keys above), written by `doc config se
   "gemini_model": "gemini-3.5-flash-lite",
   "mistral_model": "mistral-ocr-4-1",
   "mlx_model": "mlx-community/GLM-OCR-bf16",
+  "indra_threads": 0,
+  "indra_auto_rotate": false,
   "spill_threshold": 30000
 }
 ```
+
+`indra_threads` set to 0 lets Indra use every core the process may run on.
 
 ## Server
 
@@ -173,7 +185,7 @@ It records per-page latency and output length, and writes each engine's Markdown
 No automatic quality scoring is done; open the outputs side by side.
 The first intended use is a RapidOCR versus GLM-OCR comparison.
 
-`bench/indra.py` runs the Indra OCR CLI (`indra-ocr`, not a doc-cli dependency) from a throwaway environment over the same inputs, per mode and core count, and writes its Markdown next to the other engines with batch pages per second.
+`bench/indra.py` runs the Indra OCR CLI (`indra-ocr`, from the `[indra]` extra or a throwaway environment) over the same inputs, per mode and core count, and writes its Markdown next to the other engines with batch pages per second.
 `bench/compare.py` scores engine outputs against a reference engine (word F1, word-order ratio, and counts of umlauts, ß, € and decimal-comma amounts); the reference is a proxy, so read the page image for hard pages.
 
 ## Development
@@ -182,10 +194,11 @@ The first intended use is a RapidOCR versus GLM-OCR comparison.
 uv run pytest
 ```
 
-The suite covers config loading, engine selection, cloud request construction (offline, no live calls), the GLM Ollama request shape, RapidOCR on a rendered image, pdf-inspector classification and parsing, and the server round-trip against RapidOCR.
+The suite covers config loading, engine selection, cloud request construction (offline, no live calls), the GLM Ollama request shape, RapidOCR and Indra on a rendered image (the Indra test skips without the extra), the Indra engine options against a fake converter, pdf-inspector classification and parsing, and the server round-trip against RapidOCR.
 Cloud engines are tested by asserting request construction only.
 
 ## Licensing
 
 doc-cli is MIT.
 Its parsing dependencies (pdf-inspector, anydoc, RapidOCR, GLM-OCR weights) are MIT or Apache-2.0.
+The optional Indra OCR code is Apache-2.0, but its weights are OpenRAIL-M (modified), with the revenue and competition limits listed in the engine table.

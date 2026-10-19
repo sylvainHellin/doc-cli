@@ -224,3 +224,18 @@ def test_parse_pdf_mistral_splices(tmp_path, monkeypatch):
     assert result["pages_needing_ocr"] == [0, 2]
     assert result["markdown"] == "OCR0\n\nMID\n\nOCR2"
     assert _page_count(eng.pdf_calls[0]) == 2
+
+
+def test_indra_on_image(text_image_bytes, config):
+    """Real Indra run on a rendered line; skipped without the extra or the models."""
+    pytest.importorskip("indra_ocr")
+    from doc_cli.engines import EngineUnavailable
+    from doc_cli.engines.indra_engine import IndraEngine
+
+    try:
+        result = IndraEngine(config).ocr([text_image_bytes])
+    except EngineUnavailable as exc:
+        pytest.skip(str(exc))
+    assert result.engine == "indra"
+    assert result.structured
+    assert "HELLO" in result.markdown.upper()

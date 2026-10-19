@@ -193,3 +193,130 @@ def test_mistral_env_overrides_config(monkeypatch):
     cfg.raw = {"MISTRAL_API_KEY": "sk-cfg"}
     _, headers, _ = MistralEngine(cfg).build_image_request(b"img")
     assert headers["Authorization"] == "Bearer sk-env"
+
+
+# --- Indra (opt-in local engine) -------------------------------------------
+
+
+def test_resolve_indra_explicit():
+    assert resolve_engine_name("indra", Config()) == "indra"
+
+
+def test_resolve_auto_never_picks_indra(monkeypatch):
+    """indra is opt-in: auto keeps the cloud-then-platform order on every path."""
+    _clear_cloud_keys(monkeypatch)
+    cfg = Config(default_engine="auto")
+    for system in ("Linux", "Darwin"):
+        monkeypatch.setattr("platform.system", lambda s=system: s)
+        assert resolve_engine_name("auto", cfg) != "indra"
+        assert resolve_engine_name("auto", cfg, prefer_cloud=False) != "indra"
+
+
+def test_resolve_indra_as_config_default(monkeypatch):
+    _clear_cloud_keys(monkeypatch)
+    assert resolve_engine_name("auto", Config(default_engine="indra")) == "indra"
+
+
+def test_get_engine_indra():
+    from doc_cli.engines import get_engine
+    from doc_cli.engines.indra_engine import IndraEngine
+
+    eng = get_engine("indra", Config())
+    assert isinstance(eng, IndraEngine)
+    assert eng.name == "indra" and eng.structured
+
+
+def test_indra_missing_package(monkeypatch):
+    """Without the [indra] extra, check() raises EngineUnavailable, not ImportError."""
+    import sys
+
+    from doc_cli.engines.indra_engine import IndraEngine
+
+    monkeypatch.setitem(sys.modules, "indra_ocr", None)
+    with pytest.raises(EngineUnavailable, match="indra"):
+        IndraEngine(Config()).check()
+
+
+class _FakePage:
+    def __init__(self, markdown, text="plain"):
+        self.markdown = markdown
+        self.text = text
+
+
+class _FakeConverter:
+    def __init__(self, pages):
+        self.pages = list(pages)
+        self.turns: list[bool] = []
+        self.shapes: list[tuple] = []
+
+    def ocr(self, gray, turn=True):
+        self.turns.append(turn)
+        self.shapes.append(gray.shape)
+        return self.pages.pop(0)
+
+
+def _png(w=40, h=20) -> bytes:
+    import io
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (w, h), "white").save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def test_indra_load_options(monkeypatch):
+    """The converter loads once, in OCR mode, keeping page headers and footers."""
+    indra_ocr = pytest.importorskip("indra_ocr")
+    from doc_cli.engines.indra_engine import IndraEngine
+
+    calls = []
+
+    def fake_load(**kwargs):
+        calls.append(kwargs)
+        return _FakeConverter([_FakePage("# A"), _FakePage("B")])
+
+    monkeypatch.setattr(indra_ocr, "load", fake_load)
+    eng = IndraEngine(Config(indra_threads=3))
+    eng.ocr([_png()])
+    eng.ocr([_png()])
+    assert calls == [{"threads": 3, "mode": "ocr", "furniture": True}]
+
+
+def test_indra_ocr_pages_and_rotation(monkeypatch):
+    """Pages map 1:1 to images, no auto-rotation by default, text fallback when no markdown."""
+    pytest.importorskip("indra_ocr")
+    from doc_cli.engines.indra_engine import IndraEngine
+
+    fake = _FakeConverter([_FakePage("# Title\n\nbody\n"), _FakePage(None, "line 1\nline 2")])
+    eng = IndraEngine(Config())
+    eng._converter = fake
+    result = eng.ocr([_png(40, 20), _png(30, 10)])
+    assert result.engine == "indra" and result.structured
+    assert result.pages == ["# Title\n\nbody", "line 1\nline 2"]
+    assert result.markdown == "# Title\n\nbody\n\nline 1\nline 2"
+    assert fake.turns == [False, False]
+    assert fake.shapes == [(20, 40), (10, 30)]
+
+
+def test_indra_auto_rotate_opt_in():
+    pytest.importorskip("indra_ocr")
+    from doc_cli.engines.indra_engine import IndraEngine
+
+    fake = _FakeConverter([_FakePage("x")])
+    eng = IndraEngine(Config(indra_auto_rotate=True))
+    eng._converter = fake
+    eng.ocr([_png()])
+    assert fake.turns == [True]
+
+
+def test_indra_model_error_is_unavailable(monkeypatch):
+    indra_ocr = pytest.importorskip("indra_ocr")
+    from doc_cli.engines.indra_engine import IndraEngine
+
+    def boom(**kwargs):
+        raise indra_ocr.ModelError("no network")
+
+    monkeypatch.setattr(indra_ocr, "load", boom)
+    with pytest.raises(EngineUnavailable, match="no network"):
+        IndraEngine(Config()).ocr([_png()])

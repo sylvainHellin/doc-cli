@@ -25,7 +25,7 @@ def config_path() -> Path:
 
 @dataclass
 class Config:
-    # Engine selection: rapidocr | glm | gemini | mistral | auto
+    # Engine selection: rapidocr | glm | gemini | mistral | indra | auto
     default_engine: str = "auto"
     # Ollama HTTP endpoint used by the GLM engine on Linux.
     ollama_url: str = "http://localhost:11434"
@@ -41,6 +41,10 @@ class Config:
     mistral_model: str = "mistral-ocr-4-1"
     # MLX model id used by the GLM engine on macOS arm64.
     mlx_model: str = "mlx-community/GLM-OCR-bf16"
+    # Indra OCR: ONNX Runtime threads (0 = every core this process may use), and
+    # whether Indra's orientation model may turn pages (off: it misturns some).
+    indra_threads: int = 0
+    indra_auto_rotate: bool = False
     # Threshold (chars) above which CLI output is spilled to a temp file.
     spill_threshold: int = 30_000
     raw: dict[str, Any] = field(default_factory=dict)

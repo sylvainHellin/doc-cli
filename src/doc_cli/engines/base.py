@@ -17,7 +17,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from doc_cli.config import Config
 
-ENGINE_NAMES = ("rapidocr", "glm", "gemini", "mistral")
+# indra is opt-in only: selectable by name, never reached by the auto order.
+ENGINE_NAMES = ("rapidocr", "glm", "gemini", "mistral", "indra")
 CLOUD_ENGINES = frozenset({"gemini", "mistral"})
 
 
@@ -132,4 +133,8 @@ def get_engine(name: str, config: "Config") -> OcrEngine:
         from .mistral_engine import MistralEngine
 
         return MistralEngine(config)
+    if resolved == "indra":
+        from .indra_engine import IndraEngine
+
+        return IndraEngine(config)
     raise ValueError(f"unknown engine: {resolved}")
