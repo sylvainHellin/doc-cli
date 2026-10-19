@@ -173,6 +173,9 @@ It records per-page latency and output length, and writes each engine's Markdown
 No automatic quality scoring is done; open the outputs side by side.
 The first intended use is a RapidOCR versus GLM-OCR comparison.
 
+`bench/indra.py` runs the Indra OCR CLI (`indra-ocr`, not a doc-cli dependency) from a throwaway environment over the same inputs, per mode and core count, and writes its Markdown next to the other engines with batch pages per second.
+`bench/compare.py` scores engine outputs against a reference engine (word F1, word-order ratio, and counts of umlauts, ß, € and decimal-comma amounts); the reference is a proxy, so read the page image for hard pages.
+
 ## Development
 
 ```
