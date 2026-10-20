@@ -47,9 +47,11 @@ An engine that cannot run in the current environment raises `EngineUnavailable` 
 
 RapidOCR is the fast classical path: sub-second per page on CPU, strong on plain text, no tables or math.
 GLM-OCR is a small document VLM: higher-quality Markdown with tables and formulas, but slow on a CPU-only server, so on Linux it is opt-in and reached through an Ollama server you run yourself.
-Indra is a 1M-parameter line recognizer with a layout and reading-order model: on typed German business documents it returns paragraphs, headings and one table row per price position at about 0.5 s per page on CPU, but it reads degraded scans and handwriting worse than Mistral (benchmark of 2026-10-19 in `.sync/2026-10-19_indra-vs-mistral.html`).
+Indra is a 1M-parameter line recognizer with a layout and reading-order model: on typed German business documents it returns paragraphs, headings and one table row per price position at about 0.5 s per page on CPU, but it reads degraded scans and handwriting worse than Mistral.
+In a benchmark of 18 pages on 2026-10-19 (8-core Ryzen 7 CPU, scripts in `bench/`), Indra reached a word F1 of 0.91 against Mistral on German pages (rapidocr 0.94, GLM-OCR 0.96) and 5.1 pages/s in an 8-core batch, against about 2 s per page for rapidocr and 2.5 s for Mistral.
+It kept price tables one row per position with every amount right, but merged EUR/Ct columns on a degraded tax scan, lost a handwritten total, over-tabled form-like blocks, and rotated a mixed-orientation photo by 270 degrees.
+No engine read a CAD floor plan: Indra returned empty tables, rapidocr only the title, and Mistral invented a title block.
 doc-cli calls it only on the pages pdf-inspector flags for OCR, keeps page headers and footers (Indra drops them by default, letterheads included), and leaves Indra's orientation model off because it turned an upright mixed-orientation page by 270 degrees; set `"indra_auto_rotate": true` for scans that arrive sideways.
-The weights licence matters for Basenord: a product that competes with Datalab may not use them.
 No model weights are downloaded during install; RapidOCR and Indra fetch their ONNX models on first use (Indra from Hugging Face, or from `INDRA_OCR_MODEL_DIR`), and the GLM backends require a server or the `mlx` extra you set up separately.
 
 ### Engine selection
