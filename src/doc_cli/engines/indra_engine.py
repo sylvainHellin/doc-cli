@@ -11,10 +11,11 @@ Two settings follow the 2026-10-19 benchmark:
 - Page headers and footers are kept (Indra's ``--keep-furniture``); Indra's
   default drops them, which removed the sender, address and date of a letter.
 - Indra's orientation model is off by default (``indra_auto_rotate``), since it
-  turned an upright mixed-orientation page by 270 degrees and lost half of it.
+  turned an upright mixed-orientation page by 270 degrees and lost half of it
+  (1.1.2 still does, and flips an upright floor plan by 180).
   Rendered PDF pages already honour the page /Rotate entry.
 
-The models (about 18 MB) download from Hugging Face on first use and are cached
+The models (about 76 MB since 1.1) download from Hugging Face on first use and are cached
 by huggingface_hub; ``INDRA_OCR_MODEL_DIR`` points at a local copy instead.
 The code is Apache-2.0, the weights are OpenRAIL-M (modified): free for research
 and for companies under 20M USD revenue and funding, not for products that

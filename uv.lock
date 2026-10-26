@@ -169,7 +169,7 @@ requires-dist = [
     { name = "fastapi", marker = "extra == 'server'", specifier = ">=0.115.0" },
     { name = "firecrawl-anydoc", specifier = ">=0.1.7" },
     { name = "httpx", specifier = ">=0.28.0" },
-    { name = "indra-ocr", marker = "extra == 'indra'", specifier = ">=0.3.2" },
+    { name = "indra-ocr", marker = "extra == 'indra'", specifier = ">=1.1.2" },
     { name = "mlx-vlm", marker = "platform_machine == 'arm64' and sys_platform == 'darwin' and extra == 'mlx'", specifier = ">=0.1.0" },
     { name = "onnxruntime", specifier = ">=1.28.0" },
     { name = "pdf-inspector", specifier = ">=0.2.6" },
@@ -328,7 +328,7 @@ wheels = [
 
 [[package]]
 name = "indra-ocr"
-version = "0.3.2"
+version = "1.1.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "huggingface-hub" },
@@ -337,9 +337,9 @@ dependencies = [
     { name = "opencv-python-headless" },
     { name = "pypdfium2" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/23/19/1cb88e1e0c36672a7b48558734c6bfdfd1270ac373b33121513f87ddeeb9/indra_ocr-0.3.2.tar.gz", hash = "sha256:672963005be6fe9986889b48d4540a50ba4241da8e601cfa4665227cb5bf91fc", size = 83600, upload-time = "2026-10-15T06:45:57.448Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/04/f6/0d0cc6c9e386612fc3dba27cee7a7b8b3f65ea4b91746b9f3db191b79dad/indra_ocr-1.1.2.tar.gz", hash = "sha256:405a40b8a62eb28d36cf96f236f2639286fbc791407733c16f93451dbe733914", size = 112346, upload-time = "2026-10-20T01:41:19.679Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/40/d7/559c3b1c4da6f71e249885fd9538797c895419d3631b08e531cae05fca50/indra_ocr-0.3.2-py3-none-any.whl", hash = "sha256:d55ad2be54c45df80e977626bcf0d64cf6df7aa20eecf608f90669c90057eed2", size = 77052, upload-time = "2026-10-15T06:45:55.676Z" },
+    { url = "https://files.pythonhosted.org/packages/3f/9a/ad0b5a2d72acc47bf321fc9c73c559b4c7743228c59f55949d2c050e4328/indra_ocr-1.1.2-py3-none-any.whl", hash = "sha256:22c82720968dd91b11ae137865fa01edaed29d7c1c11dd5d9c4a084bc3654da2", size = 96141, upload-time = "2026-10-20T01:41:17.934Z" },
 ]
 
 [[package]]

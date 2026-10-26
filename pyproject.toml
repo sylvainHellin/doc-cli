@@ -30,7 +30,7 @@ mlx = [
 # Indra OCR (datalab-to/indra-ocr): opt-in local engine, --engine indra.
 # Code Apache-2.0; weights OpenRAIL-M (modified), see README.
 indra = [
-    "indra-ocr>=0.3.2",
+    "indra-ocr>=1.1.2",
 ]
 
 [project.scripts]
